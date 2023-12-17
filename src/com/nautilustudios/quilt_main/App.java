@@ -9,9 +9,13 @@ import java.io.IOException;
 
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
+import javax.swing.JSpinner;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import com.nautilustudios.quilt_ui.GridToolBar;
 import com.nautilustudios.quilt_ui.MainPanel;
 import com.nautilustudios.quilt_ui.MenuBar;
 import com.nautilustudios.quilt_ui.ToolBar;
@@ -26,6 +30,7 @@ public class App {
 	public static ToolBar tb;
 	public static MainPanel mp;
 	public static MenuBar mb;
+	public static GridToolBar gtb;
 	
 	private static String curFile = "";
 
@@ -43,9 +48,12 @@ public class App {
 
 		mp = new MainPanel();
 		window.add(mp, BorderLayout.CENTER);
+
+		gtb = new GridToolBar();
+		window.add(gtb, BorderLayout.EAST);
 		
-		window.setVisible(true);
 		window.pack();
+		window.setVisible(true);
 		
 		mb.getMenu(0).getItem(2).addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent ev) {
@@ -58,8 +66,30 @@ public class App {
 				doOpen();
 			}
 		});
+		
+		try {
+			((JSpinner)tb.getComponent(0)).addChangeListener(new ChangeListener() {
+				public void stateChanged(ChangeEvent e) {
+					mp.mainGrid.setWidth((Integer)((JSpinner)e.getSource()).getValue());
+					mp.refresh();
+				}
+			});
+			
+			((JSpinner)tb.getComponent(2)).addChangeListener(new ChangeListener() {
+				public void stateChanged(ChangeEvent e) {
+					mp.mainGrid.setHeight((Integer)((JSpinner)e.getSource()).getValue());
+					mp.refresh();
+				}
+			});
+		} catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
 	}
 	
+	/***
+	 * Opens a dialog that asks the user if they want to save, discard unsaved changes, or cancel the operation
+	 * @return The value returned from the JOptionPanel (yes, no, cancel)
+	 */
 	private static int unsavedChangesCheck() {
 		return JOptionPane.showConfirmDialog(null, "There are unsaved changes -- would you like to save them now?"
 				+ "\n\n Yes: Save current pattern first"
@@ -67,6 +97,10 @@ public class App {
 				+ "\n Cancel: Go back");
 	}
 	
+	
+	/***
+	 * Does a save of the current file, or does a save-as if there is no current file opened.
+	 */
 	private static void doSave() {
 		if(curFile == "") {
 			doSaveAs();
@@ -76,7 +110,7 @@ public class App {
 				if(saveFile.exists() && saveFile.canWrite()) {
 					System.out.println("saving new file...");
 					FileWriter sfw = new FileWriter(saveFile.getPath());
-					sfw.write(getXML());
+					sfw.write(getXMLString());
 					sfw.close();
 					mp.setUnsavedChanges(false);
 				}
@@ -86,6 +120,9 @@ public class App {
 		}
 	}
 	
+	/***
+	 * Opens a file selected by the user.
+	 */
 	private static void doOpen() {
 		if(mp.hasUnsavedChanges()) {
 			int changeCheck = unsavedChangesCheck();
@@ -99,9 +136,24 @@ public class App {
 			}
 		}
 		
-		//If no unsaved changes, OR after unsaved changes have been handled
+		//If no unsaved changes, OR after unsaved changes have been handled: proceed with opening file
+		
+		JFileChooser jfc = new JFileChooser();
+		jfc.setDialogTitle("Choose File To Open");
+		jfc.setFileFilter(new FileNameExtensionFilter("Quiltifier File", ".qlt"));
+		int retVal = jfc.showOpenDialog(null);
+		
+		if (retVal == JFileChooser.CANCEL_OPTION || retVal == JFileChooser.ERROR_OPTION) {
+			JOptionPane.showMessageDialog(null, "Did not open a file, just to let you know...");
+			return;
+		}
+		
+		
 	}
 	
+	/***
+	 * Opens a file selection dialog to save a new file.
+	 */
 	private static void doSaveAs() {
 		JFileChooser jfc = new JFileChooser();
 		
@@ -119,7 +171,7 @@ public class App {
 				if(saveFile.createNewFile()) {
 					System.out.println("saving new file...");
 					FileWriter sfw = new FileWriter(saveFile.getPath());
-					sfw.write(getXML());
+					sfw.write(getXMLString());
 					sfw.close();
 					curFile = saveFile.getPath() + ".qlt";
 				}
@@ -128,12 +180,19 @@ public class App {
 			}
 		}
 	}
-
-	private static String getXML() {
-		String temp = mp.getXML();
-		return temp;
+	
+	/***
+	 * Gets the XML string from the main panel.
+	 * @return A string that is the XML data of the pattern grid.
+	 */
+	private static String getXMLString() {
+		return mp.getXMLString();
 	}
 	
+	/***
+	 * Gets the enumerator value of the currently selected tool.
+	 * @return Enum value of currently selected tool.
+	 */
 	public static ToolState getToolState() {
 		return tb.getToolState();
 	}

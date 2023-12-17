@@ -1,30 +1,27 @@
 package com.nautilustudios.quilt_ui;
 
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.GridLayout;
 import java.util.ArrayList;
 import javax.swing.JPanel;
 
 import java.io.File;
-import java.io.StringWriter;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 
-import org.w3c.dom.Attr;
+import org.w3c.dom.Node;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
 import com.nautilustudios.quilt_main.App;
+import com.nautilustudios.quilt_main.CommonMethods;
 
+@SuppressWarnings("serial")
 public class Grid extends JPanel{
 	
 	private String name = "NewGrid";
@@ -40,27 +37,65 @@ public class Grid extends JPanel{
 		cols = cCount;
 		
 		sqSize = sSize;
-		
+
 		this.setLayout(new GridLayout(rows, cols));
-		
-		//this.setBorder(BorderFactory.createLineBorder(Color.green, 2));
-		
 		this.setSize(sqSize * cols, sqSize * rows);
 		
 		gridList = new ArrayList<ArrayList<GridSquare>>();
 		
-		//first dimension of gridList is x (column, or the horizontal)
-		for(int c = 0; c < cols; c++) {
+		//first dimension of gridList is y (row, or the vertical!!!)
+		//this is because the GridLayout puts new components left to right, then top to bottom (like writing)
+		//So the second dimension needs to be on the inner for loop (so that things are added in the correct order)
+		for(int r = 0; r < cols; r++) {
 			gridList.add(new ArrayList<GridSquare>());
-			for(int r = 0; r < rows; r++) {
-				gridList.get(c).add(new GridSquare(sqSize * c, sqSize * r, sqSize));
-				this.add(gridList.get(c).get(r));
+			for(int c = 0; c < rows; c++) {
+				gridList.get(r).add(new GridSquare(sqSize * c, sqSize * r, sqSize));
+				this.add(gridList.get(r).get(c));
 			}
 		}
 	}
 	
-	public String getXML() {
-		String saveData = "";
+	
+	public Grid(String xmlFilePath) {
+		try {
+			File f = new File(xmlFilePath);
+			
+			DocumentBuilderFactory docFac = DocumentBuilderFactory.newInstance();
+			docFac.setIgnoringElementContentWhitespace(true);
+			DocumentBuilder docBuilder = docFac.newDocumentBuilder();
+			
+			//Root
+			Document doc = docBuilder.parse(f);
+			
+			doc.getDocumentElement().normalize();
+			
+			Element root = doc.getDocumentElement();
+			
+			System.out.println("Root element: " + root.getNodeName());
+			System.out.println("Child Count : " + root.getChildNodes().getLength());
+			
+			NodeList nl = doc.getDocumentElement().getChildNodes();
+			System.out.println(nl.getLength());
+			for(int i = 0; i < nl.getLength(); i++) {
+				 Node n = nl.item(i);
+				if(n.getNodeType() == Node.ELEMENT_NODE) {
+					Element e = (Element)n;
+					
+					this.setHeight(Integer.parseInt(e.getAttribute("height")));
+					this.setWidth(Integer.parseInt(e.getAttribute("width")));
+					
+					NodeList clList = e.getChildNodes();
+				}
+			}
+			
+		} catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
+		
+	}
+	
+	public Document getXML() {
+		Document retNode = null;
 		
 		try {
 			DocumentBuilderFactory docFac = DocumentBuilderFactory.newInstance();
@@ -80,8 +115,9 @@ public class Grid extends JPanel{
 			for(int r = 0; r < rows; r++){
 				for(int c = 0; c < cols; c++) {
 					Element gsElm = doc.createElement("gridSquare");
-					GridSquare gs = gridList.get(c).get(r);
-					for(int i = 0; i < 4; i++){
+					GridSquare gs = gridList.get(r).get(c);
+					gsElm.setAttribute("unit_count", String.valueOf(gs.getUnitCount()));
+					for(int i = 0; i < gs.getUnitCount(); i++){
 						Element e = doc.createElement("unit_" + String.valueOf(i));
 						e.setAttribute("color", String.valueOf(gs.getUnit(i).bgColor.getRGB()));
 						gsElm.appendChild(e);
@@ -92,48 +128,26 @@ public class Grid extends JPanel{
 			
 			doc.appendChild(gridElement);
 			
-			saveData = writeXmlDocumentToXmlFile(doc);
+			retNode = doc;
 			
 		} catch (ParserConfigurationException e) {
 			e.printStackTrace();
 		}
 		
-		return saveData;
+		return retNode;
 	}
 	
 	
-	private static String writeXmlDocumentToXmlFile(Document xmlDocument)
-	{
-	    TransformerFactory tf = TransformerFactory.newInstance();
-	    Transformer transformer;
-	    try {
-	        transformer = tf.newTransformer();
-	        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-	        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-	        transformer.setOutputProperty("omit-xml-declaration", "yes");
-	         
-	        // Uncomment if you do not require XML declaration
-	        // transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
-	         
-	        //A character stream that collects its output in a string buffer, 
-	        //which can then be used to construct a string.
-	        StringWriter writer = new StringWriter();
-	 
-	        //transform document to string 
-	        transformer.transform(new DOMSource(xmlDocument), new StreamResult(writer));
-	 
-	        String xmlString = writer.getBuffer().toString();   
-	        return xmlString;
-	    } 
-	    catch (TransformerException e) 
-	    {
-	        e.printStackTrace();
-	    }
-	    catch (Exception e) 
-	    {
-	        e.printStackTrace();
-	    }
-	    return "";
+	public String getXMLString() {
+		String saveData = "";
+		
+		Document d = getXML();
+		
+		if(d != null) {
+			saveData = CommonMethods.writeXmlDocumentToXmlFile(d);
+		}
+		
+		return saveData;
 	}
 	
 	
@@ -142,6 +156,75 @@ public class Grid extends JPanel{
 		super.paintComponent(g);
 		g.setColor(Color.black);
 	}
+	
+	public void setHeight(int h) {
+		rows = h;
+		
+		int deltaH = h - gridList.size();
+		int staticSize = gridList.size();
+		
+		if(deltaH < 0) {
+			for(int i = rows - 1; i > staticSize + deltaH; i--) {
+				ArrayList<GridSquare> temp = gridList.remove(i);
+				for(GridSquare gs : temp) {
+					this.remove(gs);
+				}
+			}
+		} else {
+			ArrayList<GridSquare> temp = new ArrayList<GridSquare>();
+			for(int i = 0; i < cols; i++) {
+				temp.add(new GridSquare(sqSize * rows, sqSize * i, sqSize));
+			}
+			gridList.add(temp);
+		}
+		this.repaint();
+	}
 
+	public void setWidth(int w) {
+		cols = w;
+		
+		int deltaW = w - gridList.get(0).size();
+		int staticSize = gridList.get(0).size();
+		
+		//remove the last item from every row (from every list in the first dimension) -- this removes the last column
+		if(deltaW < 0) {
+			for(int i = 0; i < rows; i++) {
+				this.remove(gridList.get(i).remove(gridList.get(i).size() - 1));
+			}
+		} else if(deltaW > 0) {
+			for(int i = 0; i < rows; i++) {
+				gridList.get(i).add(new GridSquare(sqSize * gridList.get(i).size(), sqSize * i, sqSize));
+			}
+		}
+		this.repaint();
+	}
+
+	public void refresh() {
+		this.removeAll();
+		this.setLayout(new GridLayout(rows, cols));
+		for(int r = 0; r < rows; r++) {
+			for(int c = 0; c < cols; c++) {
+				this.add(gridList.get(r).get(c));
+			}
+		}
+		setPreferredSize(new Dimension(sqSize * cols, sqSize * rows));
+		this.repaint();
+		this.validate();
+	}
+	
+	
+	public String getName() {
+		return name + "\n" + "(" + String.valueOf(cols) + "x" + String.valueOf(rows) + ")";
+	}
+	
+	public void changeSize(int size) {
+		sqSize = size;
+		this.setSize(sqSize * cols, sqSize * rows);
+		for(ArrayList<GridSquare> gsl: gridList) {
+			for(GridSquare gs: gsl) {
+				gs.setPreferredSize(new Dimension(sqSize, sqSize));
+			}
+		}
+	}
 
 }

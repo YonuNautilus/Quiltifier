@@ -21,6 +21,7 @@ import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JRadioButton;
 
+@SuppressWarnings("serial")
 public class ToolBar extends JToolBar {
 	
 	private String lockEmoji = new String(Character.toChars(Integer.parseInt("1F512", 16)));
@@ -28,6 +29,9 @@ public class ToolBar extends JToolBar {
 	
 	private String scissorsEmoji = new String(Character.toChars(Integer.parseInt("2702", 16)));
 	private String brushEmoji = new String(Character.toChars(Integer.parseInt("1F58C", 16)));
+	
+	private String bucket = (new String(Character.toChars(Integer.parseInt("2294", 16)))) + (new String(Character.toChars(Integer.parseInt("0311", 16))));
+	
 
 	private boolean dimsLocked = false;
 	public boolean getLocked() { return dimsLocked; }
